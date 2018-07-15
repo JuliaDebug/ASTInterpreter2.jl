@@ -118,8 +118,8 @@ end
 
 
 const SEARCH_PATH = []
-__init__() = append!(SEARCH_PATH,[joinpath(JULIA_HOME,"../share/julia/base/"),
-    joinpath(JULIA_HOME,"../include/")])
+__init__() = append!(SEARCH_PATH,[joinpath(Sys.BINDIR,"../share/julia/base/"),
+    joinpath(Sys.BINDIR,"../include/")])
 function loc_for_fname(file, line, defline)
     if startswith(string(file),"REPL[")
         hist_idx = parse(Int,string(file)[6:end-1])
@@ -289,11 +289,7 @@ function is_function_def(ex)
 end
 
 function is_generated(meth)
-    if VERSION < v"0.7-"
-        meth.isstaged
-    else
-        isdefined(meth, :generator)
-    end
+    isdefined(meth, :generator)
 end
 
 function determine_method_for_expr(expr; enter_generated = false)
@@ -330,13 +326,8 @@ function determine_method_for_expr(expr; enter_generated = false)
         sig = method.sig
         isa(method, TypeMapEntry) && (method = method.func)
         # Get static parameters
-        if VERSION < v"0.7-"
-            (ti, lenv) = ccall(:jl_match_method, Any, (Any, Any),
-                                argtypes, sig)::SimpleVector
-        else
-            (ti, lenv) = ccall(:jl_type_intersection_with_env, Any, (Any, Any),
-                                argtypes, sig)::SimpleVector
-        end
+        (ti, lenv) = ccall(:jl_type_intersection_with_env, Any, (Any, Any),
+                            argtypes, sig)::SimpleVector
         if is_generated(method) && !enter_generated
             # If we're stepping into a staged function, we need to use
             # the specialization, rather than stepping thorugh the
@@ -345,11 +336,7 @@ function determine_method_for_expr(expr; enter_generated = false)
         else
             if is_generated(method)
                 args = map(_Typeof, args)
-                if VERSION < v"0.7-"
-                    code = get_source(method)
-                else
-                    code = get_source(method.generator.gen)
-                end
+                code = get_source(method.generator.gen)
             else
                 code = get_source(method)
             end
@@ -429,13 +416,13 @@ function maybe_step_through_wrapper!(stack)
             pc = next_call!(frame, pc)
         end
         stack[1] = JuliaStackFrame(frame, pc; wrapper=true)
-        unshift!(stack, enter_call_expr(Expr(:call, map(x->lookup_var_if_var(frame, x), last.args)...)))
+        pushfirst!(stack, enter_call_expr(Expr(:call, map(x->lookup_var_if_var(frame, x), last.args)...)))
         return maybe_step_through_wrapper!(stack)
     end
     stack
 end
 
-lower(mod, arg) = VERSION < v"0.7-" ? expand(arg) : Meta.lower(mod, arg)
+lower(mod, arg) = false ? expand(arg) : Meta.lower(mod, arg)
 
 # This is a version of gen_call_with_extracted_types, except that is passes back the call expression
 # for further processing.
@@ -494,16 +481,10 @@ function _make_stack(mod, arg)
 end
 
 macro make_stack(arg)
-     if VERSION < v"0.7-"
-         __module__ = current_module()
-     end
     _make_stack(__module__, arg)
 end
 
 macro enter(arg)
-    if VERSION < v"0.7-"
-        __module__ = current_module()
-    end
     quote
         let stack = $(_make_stack(__module__,arg))
             DebuggerFramework.RunDebugger(stack)

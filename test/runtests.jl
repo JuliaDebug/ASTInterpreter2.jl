@@ -1,5 +1,5 @@
 using ASTInterpreter2
-using Base.Test
+using Test
 
 include("evaling.jl")
 include("stepping.jl")

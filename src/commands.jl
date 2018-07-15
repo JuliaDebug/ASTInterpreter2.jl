@@ -18,7 +18,7 @@ function perform_return!(state)
         @assert !returning_frame.generator
         state.overall_result = val
     end
-    shift!(state.stack)
+    popfirst!(state.stack)
     if !isempty(state.stack) && state.stack[1].wrapper
         state.stack[1] = JuliaStackFrame(state.stack[1], finish!(state.stack[1]))
         perform_return!(state)
@@ -27,7 +27,7 @@ end
 
 function propagate_exception!(state, exc)
     while !isempty(state.stack)
-        shift!(state.stack)
+        popfirst!(state.stack)
         isempty(state.stack) && break
         if isa(state.stack[1], JuliaStackFrame)
             if !isempty(state.stack[1].exception_frames)
@@ -84,7 +84,7 @@ function DebuggerFramework.execute_command(state, frame::JuliaStackFrame, cmd::U
                         ok = false
                     else
                         state.stack[1] = JuliaStackFrame(frame, pc)
-                        unshift!(state.stack, new_frame)
+                        pushfirst!(state.stack, new_frame)
                         return true
                     end
                 else

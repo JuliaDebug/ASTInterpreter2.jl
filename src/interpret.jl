@@ -212,7 +212,7 @@ function next_line!(frame, stack = nothing)
                 call_expr = Expr(:call, map(x->lookup_var_if_var(frame, x), call_expr.args)...)
                 new_frame = enter_call_expr(call_expr)
                 if new_frame !== nothing
-                    unshift!(stack, new_frame)
+                    pushfirst!(stack, new_frame)
                     frame = new_frame
                     pc = frame.pc
                     break
