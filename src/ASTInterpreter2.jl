@@ -4,7 +4,8 @@ module ASTInterpreter2
 using DebuggerFramework
 using DebuggerFramework: FileLocInfo, BufferLocInfo, Suppressed
 using Base.Meta
-using Base: LineEdit
+using REPL.REPL.LineEdit
+using Nullables
 import Base: +
 
 export @enter, @make_stack
@@ -19,7 +20,7 @@ end
 
 struct JuliaStackFrame
     meth::Method
-    code::CodeInfo
+    code::Core.CodeInfo
     locals::Vector{Nullable{Any}}
     ssavalues::Vector{Any}
     sparams::Vector{Any}
@@ -118,7 +119,7 @@ end
 
 
 const SEARCH_PATH = []
-__init__() = append!(SEARCH_PATH,[joinpath(JULIA_HOME,"../share/julia/base/"),
+__init__() = append!(SEARCH_PATH,[joinpath(Base.Sys.BINDIR,"../share/julia/base/"),
     joinpath(JULIA_HOME,"../include/")])
 function loc_for_fname(file, line, defline)
     if startswith(string(file),"REPL[")
@@ -143,7 +144,7 @@ function DebuggerFramework.locinfo(frame::JuliaStackFrame)
 end
 
 function lookup_var_if_var(frame, x)
-    if isa(x, Union{SSAValue, GlobalRef, SlotNumber}) || isexpr(x, :static_parameter) || isexpr(x, :the_exception) || isexpr(x, :boundscheck)
+    if isa(x, Union{Core.SSAValue, GlobalRef, Core.SlotNumber}) || isexpr(x, :static_parameter) || isexpr(x, :the_exception) || isexpr(x, :boundscheck)
         return lookup_var(frame, x)
     end
     x
@@ -220,7 +221,7 @@ function DebuggerFramework.language_specific_prompt(state, frame::JuliaStackFram
     if haskey(state.language_modes, :julia)
         return state.language_modes[:julia]
     end
-    julia_prompt = LineEdit.Prompt(DebuggerFramework.promptname(state.level, "julia");
+    julia_prompt = REPL.LineEdit.Prompt(DebuggerFramework.promptname(state.level, "julia");
         # Copy colors from the prompt object
         prompt_prefix = state.repl.prompt_color,
         prompt_suffix = (state.repl.envcolors ? Base.input_color : repl.input_color),
@@ -235,7 +236,7 @@ function DebuggerFramework.language_specific_prompt(state, frame::JuliaStackFram
 
     julia_prompt.on_done = (s,buf,ok)->begin
         if !ok
-            LineEdit.transition(s, :abort)
+            REPL.LineEdit.transition(s, :abort)
             return false
         end
         xbuf = copy(buf)
@@ -248,14 +249,14 @@ function DebuggerFramework.language_specific_prompt(state, frame::JuliaStackFram
             # Convenience hack. We'll see if this is more useful or annoying
             for c in all_commands
                 !startswith(command, c) && continue
-                LineEdit.transition(s, state.main_mode)
-                LineEdit.state(s, state.main_mode).input_buffer = xbuf
+                REPL.LineEdit.transition(s, state.main_mode)
+                REPL.LineEdit.state(s, state.main_mode).input_buffer = xbuf
                 break
             end
         end
-        LineEdit.reset_state(s)
+        REPL.LineEdit.reset_state(s)
     end
-    julia_prompt.keymap_dict = LineEdit.keymap([Base.REPL.mode_keymap(state.main_mode);state.standard_keymap])
+    julia_prompt.keymap_dict = REPL.LineEdit.keymap([Base.REPL.mode_keymap(state.main_mode);state.standard_keymap])
     state.language_modes[:julia] = julia_prompt
     return julia_prompt
 end
@@ -367,7 +368,7 @@ function get_source(meth)
     end
 end
 
-function copy_codeinfo(code::CodeInfo)
+function copy_codeinfo(code::Core.CodeInfo)
     old_code = code.code
     code.code = UInt8[]
     new_codeinfo = deepcopy(code)
@@ -420,7 +421,7 @@ function maybe_step_through_wrapper!(stack)
     last = stack[1].code.code[end-1]
     isexpr(last, :(=)) && (last = last.args[2])
     is_kw = startswith(String(Base.unwrap_unionall(stack[1].meth.sig).parameters[1].name.name), "#kw")
-    if is_kw || isexpr(last, :call) && any(x->x==SlotNumber(1), last.args)
+    if is_kw || isexpr(last, :call) && any(x->x==Core.SlotNumber(1), last.args)
         # If the last expr calls #self# or passes it to an implemetnation method,
         # this is a wrapper function that we might want to step though
         frame = stack[1]

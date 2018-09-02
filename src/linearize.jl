@@ -1,6 +1,7 @@
+
 # Linearizer. Future versions of julia will emit fully-linear IR, so this way upgrading should be easier.
 # This is taken from inference.jl on julia master
-function newvar!(code::CodeInfo, typ)
+function newvar!(code::Core.CodeInfo, typ)
     if isa(code.ssavaluetypes, Int)
         id = code.ssavaluetypes::Int
         code.ssavaluetypes = id + 1
@@ -8,7 +9,7 @@ function newvar!(code::CodeInfo, typ)
         id = length(code.ssavaluetypes)
         push!(code.ssavaluetypes, typ)
     end
-    return SSAValue(id)
+    return Core.SSAValue(id)
 end
 
 is_meta_expr_head(head::Symbol) =
@@ -21,7 +22,7 @@ function is_ccall_static(e::Expr)
         length(e.args) == 3 || return false
         for i in 2:3
             a = e.args[i]
-            (isa(a, Expr) || isa(a, Slot) || isa(a, SSAValue)) && return false
+            (isa(a, Expr) || isa(a, Slot) || isa(a, Core.SSAValue)) && return false
         end
         return true
     elseif e.head === :static_parameter
@@ -30,7 +31,7 @@ function is_ccall_static(e::Expr)
     return false
 end
 
-function linearize_arg!(args, i, stmts, code::CodeInfo)
+function linearize_arg!(args, i, stmts, code::Core.CodeInfo)
     a = args[i]
     if isa(a, Symbol)
         a = a::Symbol
@@ -90,7 +91,7 @@ function relabel!(body::Vector{Any})
     end
 end
 
-function linearize!(code::CodeInfo)
+function linearize!(code::Core.CodeInfo)
     body = code.code
     len = length(body)
     next_i = 1

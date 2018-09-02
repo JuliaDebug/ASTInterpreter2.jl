@@ -1,8 +1,10 @@
 # Implements a simple interpreter for julia's lowered AST
 
-lookup_var(frame, val::SSAValue) = frame.ssavalues[val.id+1]
+using Nullables
+
+lookup_var(frame, val::Core.SSAValue) = frame.ssavalues[val.id+1]
 lookup_var(frame, ref::GlobalRef) = getfield(ref.mod, ref.name)
-lookup_var(frame, slot::SlotNumber) = get(frame.locals[slot.id])
+lookup_var(frame, slot::Core.SlotNumber) = get(frame.locals[slot.id])
 function lookup_var(frame, e::Expr)
     isexpr(e, :the_exception) && return get(frame.last_exception[])
     isexpr(e, :boundscheck) && return true
@@ -28,7 +30,7 @@ function evaluate_call(frame, call_expr)
         arg = call_expr.args[i]
         if isa(arg, QuoteNode)
             args[i] = arg.value
-        elseif isa(arg, Union{SSAValue, GlobalRef, Slot})
+        elseif isa(arg, Union{Core.SSAValue, GlobalRef, Slot})
             args[i] = lookup_var(frame, arg)
         elseif isexpr(arg, :&)
             args[i] = Expr(:&, lookup_var(frame, arg.args[1]))
@@ -51,7 +53,7 @@ function evaluate_call(frame, call_expr)
         ret = eval(frame.meth.module, Expr(:foreigncall, args...))
     else
         f = to_function(args[1])
-        if isa(f, CodeInfo)
+        if isa(f, Core.CodeInfo)
             ret = finish!(enter_call_expr(frame, call_expr))
         else
             # Don't go through eval since this may have unqouted, symbols and
@@ -63,7 +65,7 @@ function evaluate_call(frame, call_expr)
 end
 
 function do_assignment!(frame, lhs, rhs)
-    if isa(lhs, SSAValue)
+    if isa(lhs, Core.SSAValue)
         frame.ssavalues[lhs.id+1] = rhs
     elseif isa(lhs, Slot)
         frame.locals[lhs.id] = Nullable{Any}(rhs)
@@ -171,7 +173,7 @@ is a wrapper (either because of optional arguments or becaue of keyword argument
 """
 function iswrappercall(expr)
     isexpr(expr, :(=)) && (expr = expr.args[2])
-    isexpr(expr, :call) && any(x->x==SlotNumber(1), expr.args)
+    isexpr(expr, :call) && any(x->x==Core.SlotNumber(1), expr.args)
 end
 
 pc_expr(frame, pc) = frame.code.code[pc.next_stmt]

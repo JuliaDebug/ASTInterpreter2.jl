@@ -1,3 +1,5 @@
+using Markdown
+
 function perform_return!(state)
     returning_frame = state.stack[1]
     returning_expr = pc_expr(returning_frame)
@@ -157,7 +159,7 @@ end
 
 function DebuggerFramework.execute_command(state, frane::JuliaStackFrame, ::Val{:?}, cmd)
     display(
-            Base.@md_str """
+            @md_str """
     Basic Commands:\\
     - `n` steps to the next line\\
     - `s` steps into the next call\\
