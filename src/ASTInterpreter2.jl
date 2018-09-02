@@ -120,7 +120,7 @@ end
 
 const SEARCH_PATH = []
 __init__() = append!(SEARCH_PATH,[joinpath(Base.Sys.BINDIR,"../share/julia/base/"),
-    joinpath(JULIA_HOME,"../include/")])
+    joinpath(Base.Sys.BINDIR,"../include/")])
 function loc_for_fname(file, line, defline)
     if startswith(string(file),"REPL[")
         hist_idx = parse(Int,string(file)[6:end-1])
