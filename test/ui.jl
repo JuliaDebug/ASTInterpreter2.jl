@@ -1,5 +1,5 @@
-using ASTInterpreter2
-
+using ASTInterpreter2, REPL
+using Pkg
 # From base, but copied here to make sure we don't fail bacause base changed
 function my_gcd(a::T, b::T) where T<:Union{Int64,UInt64,Int128,UInt128}
     a == 0 && return abs(b)
@@ -23,15 +23,16 @@ function my_gcd(a::T, b::T) where T<:Union{Int64,UInt64,Int128,UInt128}
 end
 
 if Sys.isunix()
-    include(Pkg.dir("VT100","test","TerminalRegressionTests.jl"))
+    import VT100
+    include(joinpath(dirname(pathof(VT100)), "..", "test","TerminalRegressionTests.jl"))
 
     const thisdir = dirname(@__FILE__)
     TerminalRegressionTests.automated_test(
                     joinpath(thisdir,"ui/history.multiout"),
                 ["n\n","`", "a\n", "\e[A", "\e[A", "\x3", "\x4"]) do emuterm
-        repl = Base.REPL.LineEditREPL(emuterm, true)
-        repl.interface = Base.REPL.setup_interface(repl)
-        repl.specialdisplay = Base.REPL.REPLDisplay(repl)
+        repl = REPL.LineEditREPL(emuterm, true)
+        repl.interface = REPL.setup_interface(repl)
+        repl.specialdisplay = REPL.REPLDisplay(repl)
         stack = ASTInterpreter2.@make_stack my_gcd(10, 20)
         stack[1] = ASTInterpreter2.JuliaStackFrame(stack[1], stack[1].pc; fullpath=false)
         DebuggerFramework.RunDebugger(stack, repl, emuterm)

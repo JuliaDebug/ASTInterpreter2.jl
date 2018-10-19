@@ -8,8 +8,11 @@ function perform_return!(state)
         if returning_frame.generator
             # Don't do anything here, just return us to where we were
         else
-            if isexpr(pc_expr(calling_frame), :(=))
-                do_assignment!(calling_frame, pc_expr(calling_frame).args[1], val)
+            prev = pc_expr(calling_frame)
+            if isexpr(prev, :(=))
+                do_assignment!(calling_frame, prev.args[1], val)
+            elseif isassign(calling_frame)
+                do_assignment!(calling_frame, getlhs(calling_frame.pc), val)
             end
             state.stack[2] = JuliaStackFrame(calling_frame, maybe_next_call!(calling_frame,
                 calling_frame.pc + 1))
@@ -79,8 +82,8 @@ function DebuggerFramework.execute_command(state, frame::JuliaStackFrame, cmd::U
                     if (cmd == Val{:s}() || cmd == Val{:sg}())
                         new_frame = JuliaStackFrame(new_frame, maybe_next_call!(new_frame))
                     end
-                    # Don't step into Core.Inference
-                    if new_frame.meth.module == Core.Inference
+                    # Don't step into Core.Compiler
+                    if new_frame.meth.module == Core.Compiler
                         ok = false
                     else
                         state.stack[1] = JuliaStackFrame(frame, pc)
@@ -157,7 +160,7 @@ end
 
 function DebuggerFramework.execute_command(state, frane::JuliaStackFrame, ::Val{:?}, cmd)
     display(
-            Base.@md_str """
+            @md_str """
     Basic Commands:\\
     - `n` steps to the next line\\
     - `s` steps into the next call\\
