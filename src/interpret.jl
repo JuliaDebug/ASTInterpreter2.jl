@@ -77,7 +77,7 @@ function do_assignment!(frame, lhs, rhs)
         frame.last_reference[frame.code.slotnames[lhs.id]] =
             lhs.id
     elseif isa(lhs, GlobalRef)
-        eval(lhs.mod,:($(lhs.name) = $(QuoteNode(rhs))))
+        Base.eval(lhs.mod,:($(lhs.name) = $(QuoteNode(rhs))))
     end
 end
 
@@ -141,6 +141,7 @@ function _step_expr(frame, pc)
                     pop!(frame.exception_frames)
                 end
             elseif node.head == :static_parameter
+            elseif node.head == :gc_preserve_end || node.head == :gc_preserve_begin
             elseif node.head == :return
                 return nothing
             else
