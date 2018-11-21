@@ -12,8 +12,12 @@ using Markdown
 
 export @enter, @make_stack
 
-struct CustomType end
-# include("linearize.jl")
+struct Wrap{V}
+    val::V
+end
+unwrap(w::Wrap) = w.val
+unwrap(::Nothing) = nothing
+
 include("interpret.jl")
 
 struct JuliaProgramCounter
@@ -70,14 +74,14 @@ end
 
 function DebuggerFramework.print_locals(io::IO, frame::JuliaStackFrame)
     for i = 1:length(frame.locals)
-        if !isa(frame.locals[i], CustomType)
+        if !isa(frame.locals[i], Nothing)
             # #self# is only interesting if it has values inside of it. We already know
             # which function we're in otherwise.
-            val = frame.locals[i]
+            val = unwrap(frame.locals[i])
             if frame.code.slotnames[i] == Symbol("#self#") && (isa(val, Type) || sizeof(val) == 0)
                 continue
             end
-            DebuggerFramework.print_var(io, frame.code.slotnames[i], frame.locals[i], nothing)
+            DebuggerFramework.print_var(io, frame.code.slotnames[i], unwrap(frame.locals[i]), nothing)
         end
     end
     for i = 1:length(frame.sparams)
@@ -122,9 +126,9 @@ function DebuggerFramework.eval_code(state, frame::JuliaStackFrame, command)
     local_vars = Any[]
     local_vals = Any[]
     for i = 1:length(frame.locals)
-        if !isa(frame.locals[i], CustomType)
+        if !isa(frame.locals[i], Nothing)
             push!(local_vars, frame.code.slotnames[i])
-            push!(local_vals, QuoteNode(frame.locals[i]))
+            push!(local_vals, QuoteNode(unwrap(frame.locals[i])))
         end
     end
     for i = 1:length(frame.sparams)
@@ -141,8 +145,8 @@ function DebuggerFramework.eval_code(state, frame::JuliaStackFrame, command)
     eval_res, res = Core.eval(frame.meth.module, eval_expr)
     j = 1
     for i = 1:length(frame.locals)
-        if !isa(frame.locals[i], CustomType)
-            frame.locals[i] = res[j]
+        if !isa(frame.locals[i], Nothing)
+            frame.locals[i] = Wrap(res[j])
             j += 1
         end
     end
@@ -358,14 +362,14 @@ function prepare_locals(meth, code, argvals = (), generator = false)
     sparams = Array{Any}(undef, length(meth.sparam_syms))
     for i = 1:meth.nargs
         if meth.isva && i == length(argnames)
-            locals[i] = length(argvals) >= i ? tuple(argvals[i:end]...) : tuple()
+            locals[i] = length(argvals) >= i ? Wrap(tuple(argvals[i:end]...)) : Wrap(())
             break
         end
-        locals[i] = length(argvals) >= i ? argvals[i] : tuple()
+        locals[i] = length(argvals) >= i ? Wrap(argvals[i]) : Wrap(())
     end
     # add local variables initially undefined
     for i = (meth.nargs+1):length(code.slotnames)
-        locals[i] = CustomType()
+        locals[i] = nothing
     end
     used = find_used(code)
     JuliaStackFrame(meth, code, locals, ssavalues, used, sparams,  Int[], nothing,
