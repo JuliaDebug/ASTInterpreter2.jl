@@ -12,12 +12,6 @@ using Markdown
 
 export @enter, @make_stack
 
-struct Wrap{V}
-    val::V
-end
-unwrap(w::Wrap) = w.val
-unwrap(::Nothing) = nothing
-
 include("interpret.jl")
 
 struct JuliaProgramCounter
@@ -77,11 +71,11 @@ function DebuggerFramework.print_locals(io::IO, frame::JuliaStackFrame)
         if !isa(frame.locals[i], Nothing)
             # #self# is only interesting if it has values inside of it. We already know
             # which function we're in otherwise.
-            val = unwrap(frame.locals[i])
+            val = something(frame.locals[i])
             if frame.code.slotnames[i] == Symbol("#self#") && (isa(val, Type) || sizeof(val) == 0)
                 continue
             end
-            DebuggerFramework.print_var(io, frame.code.slotnames[i], unwrap(frame.locals[i]), nothing)
+            DebuggerFramework.print_var(io, frame.code.slotnames[i], something(frame.locals[i]), nothing)
         end
     end
     for i = 1:length(frame.sparams)
@@ -128,7 +122,7 @@ function DebuggerFramework.eval_code(state, frame::JuliaStackFrame, command)
     for i = 1:length(frame.locals)
         if !isa(frame.locals[i], Nothing)
             push!(local_vars, frame.code.slotnames[i])
-            push!(local_vals, QuoteNode(unwrap(frame.locals[i])))
+            push!(local_vals, QuoteNode(something(frame.locals[i])))
         end
     end
     for i = 1:length(frame.sparams)
@@ -146,7 +140,7 @@ function DebuggerFramework.eval_code(state, frame::JuliaStackFrame, command)
     j = 1
     for i = 1:length(frame.locals)
         if !isa(frame.locals[i], Nothing)
-            frame.locals[i] = Wrap(res[j])
+            frame.locals[i] = Some(res[j])
             j += 1
         end
     end
@@ -362,10 +356,10 @@ function prepare_locals(meth, code, argvals = (), generator = false)
     sparams = Array{Any}(undef, length(meth.sparam_syms))
     for i = 1:meth.nargs
         if meth.isva && i == length(argnames)
-            locals[i] = length(argvals) >= i ? Wrap(tuple(argvals[i:end]...)) : Wrap(())
+            locals[i] = length(argvals) >= i ? Some(tuple(argvals[i:end]...)) : Some(())
             break
         end
-        locals[i] = length(argvals) >= i ? Wrap(argvals[i]) : Wrap(())
+        locals[i] = length(argvals) >= i ? Some(argvals[i]) : Some(())
     end
     # add local variables initially undefined
     for i = (meth.nargs+1):length(code.slotnames)

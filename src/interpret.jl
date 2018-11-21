@@ -7,7 +7,7 @@ isassign(fr, pc) = (pc.next_stmt in fr.used)
 
 lookup_var(frame, val::SSAValue) = frame.ssavalues[val.id+1]
 lookup_var(frame, ref::GlobalRef) = getfield(ref.mod, ref.name)
-lookup_var(frame, slot::SlotNumber) = unwrap(frame.locals[slot.id])
+lookup_var(frame, slot::SlotNumber) = something(frame.locals[slot.id])
 function lookup_var(frame, e::Expr)
     isexpr(e, :the_exception) && return frame.last_exception[]
     isexpr(e, :boundscheck) && return true
@@ -73,7 +73,7 @@ function do_assignment!(frame, lhs, rhs)
     if isa(lhs, SSAValue)
         frame.ssavalues[lhs.id+1] = rhs
     elseif isa(lhs, Slot)
-        frame.locals[lhs.id] = Wrap(rhs)
+        frame.locals[lhs.id] = Some(rhs)
         frame.last_reference[frame.code.slotnames[lhs.id]] =
             lhs.id
     elseif isa(lhs, GlobalRef)
