@@ -21,7 +21,7 @@ function foo(n)
     ((BigInt[1 1; 1 0])^x)[2,1]
 end
 
-@enter foo(20)
+ASTInterpreter2.@enter foo(20)
 ```
 
 Basic Commands:
