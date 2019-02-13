@@ -3,6 +3,8 @@
 [![Build Status](https://travis-ci.org/JuliaDebug/ASTInterpreter2.jl.svg?branch=master)](https://travis-ci.org/JuliaDebug/ASTInterpreter2.jl)
 [![codecov.io](http://codecov.io/github/JuliaDebug/ASTInterpreter2.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaDebug/ASTInterpreter2.jl?branch=master)
 
+**NOTE: most of the recent development has moved to [JuliaInterpreter](https://github.com/JuliaDebug/JuliaInterpreter.jl).**
+
 ## Installation
 
 ```jl
